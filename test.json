@@ -1,0 +1,12 @@
+{
+    "TempControl" : {
+        "tempUp" : { "increaseAmount" : "int-param" },
+        "tempDown" : { "decreaseAmount" : "int-param" }
+    },
+    "LightControl" : {
+        "on" : { "lightLocation" : "int-param",
+                 "intensity" : "int-param"},
+        "off" : { "lightLocation" : "int-param",
+                  "intensity" : { "test" : "1"}}
+    }
+}
