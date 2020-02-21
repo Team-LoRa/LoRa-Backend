@@ -1,36 +1,40 @@
 #!/usr/bin/env python3
 import argparse
-import sys
+import json
+import requests
 import socket
-from socket import socket as Socket
 import ssl
+import sys
 import threading
 
 
 
-CERT_PATH = "/mnt/c/Users/gearl/Desktop/LoRaMessenger/ProxyServer/cert.pem"
+# The number of bytes allocated to an arbitrary integer parameter
+INT_PARAM_LENGTH = 1
+# The number of bytes allocated to an arbitrary string parameter
+STR_PARAM_LENGTH = 1
 
 
 
 def main():
     # Default to port 2080
     args = 2080
-    
-    # If arguments are present, use them to determine port 
+
+    # If arguments are present, use them to determine port
     if len(sys.argv) > 1:
         args = int(sys.argv[1])
-    
+
     # Create the server socket (to handle tcp requests using ipv4), make sure
     # it is always closed by using with statement.
     # SOCK_STREAM - sets up the socket to use the TCP transfer protocol
-    with Socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-        
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+
         # The socket stays connected even after this script ends. So in order
         # to allow the immediate reuse of the socket (so that we can kill and
         # re-run the server while debugging) we set the following option. This
         # is potentially dangerous in real code: in rare cases you may get junk
         # data arriving at the socket.
-        
+
         # Set socket options
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -46,27 +50,9 @@ def main():
         except socket.error as error:
             print( str(error) )
 
-        # Create an ssl context to wrap the socket in 
-        ssl_context = ssl.create_default_context( ssl.Purpose.CLIENT_AUTH )
-
-        # Load a set of default certification authority certificates from
-        # default locations to authenticate client connects to the proxy server
-        ssl_context.load_cert_chain( certfile=CERT_PATH )
-
-        ssl_context.set_ciphers('EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH')
-
-        # Wrap the socket to get an SSL socket
-        wrapped_socket = ssl_context.wrap_socket( server_socket, server_side=True )
-
-        print( "Proxy server ready" )
-        print( "Main server loop is running on thread " + str(threading.get_ident()) )
-        
         while True:
-
             # Accept an incomming message
-            connected_socket = wrapped_socket.accept()[0]
-
-            connected_stream = ssl_context.wrap_socket( connected_socket, server_side=True )
+            connected_socket = server_socket.accept()[0]
 
             # Save the received message as ascii
             # .decode() uses utf-8 by default
@@ -77,7 +63,7 @@ def main():
 
             # Start the new thread
             new_thread.start()
-            
+
     return 0
 
 
@@ -86,6 +72,9 @@ class message_handler_thread(threading.Thread):
     def __init__(self, message):
         threading.Thread.__init__(self)
         self.message = message
+        self.appName = None
+        self.apiName = None
+        self.paramsTable = None
 
     def run(self):
         print( "Starting thread " + str(threading.get_ident()) )
@@ -95,6 +84,7 @@ class message_handler_thread(threading.Thread):
     def handleMessage(self, message):
         print( "handle message began" )
 
+        #try:
         # TODO: Handle any kind of header metadata that gets added to the bytes
         # for the transmission from the gateway to the proxy server
 
@@ -106,27 +96,128 @@ class message_handler_thread(threading.Thread):
         apiNameByte = byteArray[1]
 
         # Read the appropriate encoding table based upon the app/api combo
-        self.readEncodingTable(appNameByte, apiNameByte)
+        self.readDecodingTable(appNameByte, apiNameByte)
 
-        # Iterate through remaining bytes
-        for index in range(2, len(byteArray)):
-            
-            # Decode each byte
-            self.decodeFromTable( byteArray[index] )
+        decodedMessage = self.appName + "/" + self.apiName
+
+        # Check if the api has params
+        if self.paramsTable:
+
+            decodedMessage += "?"
+
+            # Initialize the byte index at 2 since we already read the first two
+            # bytes
+            byteIndex = 2
+
+            # Parse the remaining bytes as the parameters in order
+            for parameter in self.paramsTable:
+
+                # Read the name and values of the param
+                paramName = parameter[ "name" ]
+                paramValues = parameter[ "values" ]
+
+                # Determine behavior based on the type of parameter
+                if type(paramValues) is dict:
+
+                    # Decode the parameter using its values hash
+                    value = paramValues[ str( byteArray[ byteIndex ] ) ]
+
+                    decodedMessage += paramName + "=" + str( value ) + "&"
+
+                    # Iterate the byteIndex
+                    byteIndex += 1
+
+                elif paramValues == "int-param":
+
+                    # TODO: Implement handling of multi-byte int params
+
+                    # Decode the parameter using its values hash
+                    value = byteArray[ byteIndex ]
+
+                    decodedMessage += paramName + "=" + str( value ) + "&"
+
+                    byteIndex += INT_PARAM_LENGTH
+
+                elif paramValues == "string-param":
+
+                    # TODO: Implement handling of multi-byte str params
+
+                    byteIndex += STR_PARAM_INDEX
+
+            # Trim trailing "&"
+            decodedMessage = decodedMessage[:-1]
+
+        # TODO: Handle remaining bytes in some way, potentially a checksum?
 
         # Send the composed message off to its destination
-        self.forwardMessage()
+        self.forwardMessage( decodedMessage )
 
-    def readEncodingTable(self, appName, apiName):
-        print( "readEncodingTable ran; app: " + str(appName) + " api: " + str(apiName) )
+        # except Exception as e:
+        #     print( type(e) )
+        #     print( "thread was unable to handle the message" )
 
-        
+    def readDecodingTable(self, appByte, apiByte):
+        print( "readDecodingTable ran; app: " + str(appByte) + " api: " + str(apiByte) )
 
-    def decodeFromTable(self, byteCode):
+        try:
+            # Open the encoding table file and convert it into a dictionary
+            file = open("decoding_table.json", 'r')
+            decodingTable = json.load(file)
+
+        except FileNotFoundError as e:
+            # Catch file not found exception,
+            print( type(e) )
+            print( "No encoding table found" )
+            raise
+
+        try:
+            # Attempt to read the application name
+            appTable = decodingTable[ str(appByte) ]
+
+        except KeyError as e:
+            # Catch key error
+            print( type(e) )
+            print( "App byte not found in decoding table" )
+            raise
+
+        try:
+            # Attempt to read the api name
+            apiTable = appTable[ str(apiByte) ]
+
+        except KeyError as e :
+            # Catch key error
+            print( type(e) )
+            print( "API byte not found in decoding table" )
+            raise
+
+        try:
+            # Save the application's url
+            self.appName = appTable[ "url" ]
+
+            # Save the api name
+            self.apiName = apiTable[ "name" ]
+
+            # Save the api's parameters
+            self.paramsTable = apiTable[ "params" ]
+
+        except KeyError as e :
+            # Catch key error
+            print( type(e) )
+            print( "Decoding table missing information" )
+            raise
+
+
+    def decodeFromTable(self, byteArray, byteIndex):
         print( "decodeFromTable ran on " + str(byteCode) )
 
-    def forwardMessage(self):
+        # As simple as looking in the saved parameter table for the byteCode and returning that
+        # value. Only more complicated if the parameter is supposed to be an arbitrary int/char/etc.
+
+    def forwardMessage(self, message):
         print( "forwardMessage ran" )
+        print( message )
+
+        # Potentially use request to send the message off with its data?
 
 
 

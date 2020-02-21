@@ -9,19 +9,14 @@ HOSTNAME = 'localhost'
 BUFFER_SIZE = 1024
 
 # Create a simple list of integers to be the message
-list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+list = [1, 1, 5, 3]
 # Convert it to bytes
 message = bytearray( list )
 
 # Create the socket
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# Wrap it with SSL
-ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-ssl_context.load_default_certs()
-ws = ssl_context.wrap_socket( s, server_hostname=HOSTNAME )
 
 # Connect and send message
-ws.connect( (TCP_IP, TCP_PORT) )
-ws.send( message )
-ws.close()
-
+s.connect( (TCP_IP, TCP_PORT) )
+s.send( message )
+s.close()
