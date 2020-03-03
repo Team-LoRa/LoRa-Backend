@@ -91,6 +91,8 @@ class message_handler_thread(threading.Thread):
         # Convert the string of bytes into an array of bytes
         byteArray = list( message )
 
+        print( byteArray )
+
         # Retrieve the app and api bytes
         appNameByte = byteArray[0]
         apiNameByte = byteArray[1]
@@ -129,20 +131,55 @@ class message_handler_thread(threading.Thread):
 
                 elif paramValues == "int-param":
 
-                    # TODO: Implement handling of multi-byte int params
+                    try:
+                        # Retreive the number of bytes dedicated to this integer
+                        integerLength = int( parameter[ "length" ] )
 
-                    # Decode the parameter using its values hash
-                    value = byteArray[ byteIndex ]
+                        # Retreive a sub array of the bytes dedicated to this parameter
+                        integerSubArray = byteArray[ byteIndex:( byteIndex + integerLength ) ]
 
-                    decodedMessage += paramName + "=" + str( value ) + "&"
+                        # Convert the array of bytes into an integers\
+                        value = int.from_bytes( integerSubArray, byteorder='little', signed=False)
 
-                    byteIndex += INT_PARAM_LENGTH
+                        print( value )
 
-                elif paramValues == "string-param":
+                        decodedMessage += paramName + "=" + str( value ) + "&"
 
-                    # TODO: Implement handling of multi-byte str params
+                        # Iterate the byteIndex
+                        byteIndex += integerLength
 
-                    byteIndex += STR_PARAM_INDEX
+                    except IndexError as e :
+                        # Catch the index error
+                        print( type(e) )
+                        print( "Byte missing for int-param" )
+                        raise
+
+                elif paramValues == "char-param":
+
+                    try:
+                        # Retreive the number of bytes dedicated to this integer
+                        charLength = int( parameter[ "length" ] )
+
+                        # Retreive a sub array of the bytes dedicated to this parameter
+                        charSubArray = byteArray[ byteIndex:( byteIndex + charLength ) ]
+
+                        # Convert the array of bytes into an integers\
+                        value = int.from_bytes( charSubArray, byteorder='little', signed=False)
+
+                        value = chr( value )
+
+                        print( value )
+
+                        decodedMessage += paramName + "=" + str( value ) + "&"
+
+                        # Iterate the byteIndex
+                        byteIndex += charLength
+
+                    except IndexError as e :
+                        # Catch the index error
+                        print( type(e) )
+                        print( "Byte missing for int-param" )
+                        raise
 
             # Trim trailing "&"
             decodedMessage = decodedMessage[:-1]
@@ -205,13 +242,6 @@ class message_handler_thread(threading.Thread):
             print( type(e) )
             print( "Decoding table missing information" )
             raise
-
-
-    def decodeFromTable(self, byteArray, byteIndex):
-        print( "decodeFromTable ran on " + str(byteCode) )
-
-        # As simple as looking in the saved parameter table for the byteCode and returning that
-        # value. Only more complicated if the parameter is supposed to be an arbitrary int/char/etc.
 
     def forwardMessage(self, message):
         print( "forwardMessage ran" )
