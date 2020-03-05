@@ -2,10 +2,10 @@
 
   "TempControl" : {
     "url" : "TempControl.com",
-    "byte_code" : 1,
+    "byte_code" : "1",
 
     "tempUp" : {
-      "byte_code" : 1,
+      "byte_code" : "1",
       "params" : [
         {
           "name" : "increaseAmount",
@@ -26,7 +26,7 @@
     },
 
     "tempDown" : {
-      "byte_code" : 2,
+      "byte_code" : "2",
       "params" : [
         {
           "name" : "increaseAmount",
@@ -49,10 +49,10 @@
 
   "LightControl" : {
     "url" : "LightControl.com",
-    "byte_code" : 2
+    "byte_code" : "2",
 
     "on" : {
-      "byte_code" : 1,
+      "byte_code" : "1",
       "params" : [
         {
           "name" : "intensity",
@@ -72,7 +72,7 @@
     },
 
     "off" : {
-      "byte_code" : 2,
+      "byte_code" : "2",
       "params" : {
         "name" : "room",
         "values" : {
