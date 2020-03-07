@@ -1,0 +1,12 @@
+{
+    "TempControl" : {
+        "url" : "TempControl.com",
+        "tempUp" : { "increaseAmount" : [ "int-param", "2" ], "room" : [ "Living Room", "Dining Room", "Kitchen", "Bedroom", "Garage"] },
+        "tempDown" : { "decreaseAmount" : [ "int-param", "2" ], "room" : [ "Living Room", "Dining Room", "Kitchen", "Bedroom", "Garage"] }
+    },
+    "LightControl" : {
+        "url" : "LightControl.com",
+        "on" : { "intensity" : [ "int-param", "2" ], "room" : [ "Living Room", "Dining Room", "Kitchen", "Bedroom", "Garage"] },
+        "off" : { "room" : [ "Living Room", "Dining Room", "Kitchen", "Bedroom", "Garage"] }
+    }
+}

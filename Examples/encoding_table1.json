@@ -1,7 +1,6 @@
 {
 
   "TempControl" : {
-    "url" : "TempControl.com",
     "byte_code" : "1",
 
     "tempUp" : {
@@ -48,7 +47,6 @@
   },
 
   "LightControl" : {
-    "url" : "LightControl.com",
     "byte_code" : "2",
 
     "on" : {
@@ -56,7 +54,8 @@
       "params" : [
         {
           "name" : "intensity",
-          "values" : "int-param"
+          "values" : "int-param",
+          "length" : "2"
         },
         {
           "name" : "room",

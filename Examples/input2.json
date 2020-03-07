@@ -1,0 +1,11 @@
+{
+    "OpenCellID" : {
+      "url" : "OpenCellID.com",
+        "measure/add" : { "lat" : [ "double-param", "8" ],
+                          "lon" : [ "double-param", "8" ],
+                          "mcc" : [ "int-param", "1"],
+                          "mnc" : [ "int-param", "2"],
+                          "lac" : [ "int-param", "3"],
+                          "cellid" : [ "int-param", "4"] }
+    }
+}

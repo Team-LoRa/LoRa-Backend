@@ -1,0 +1,89 @@
+{
+
+  "1" : {
+    "url" : "TempControl.com",
+
+    "1" : {
+      "name" : "tempUp",
+      "params" : [
+        {
+          "name" : "increaseAmount",
+          "values" : "int-param",
+          "length" : "2"
+        },
+        {
+          "name" : "room",
+          "values" : {
+            "1" : "Living Room",
+            "2" : "Dining Room",
+            "3" : "Kitchen",
+            "4" : "Bedroom",
+            "5" : "Garage"
+          }
+        }
+      ]
+    },
+
+    "2" : {
+      "name" : "tempDown",
+      "params" : [
+        {
+          "name" : "increaseAmount",
+          "values" : "int-param",
+          "length" : "2"
+        },
+        {
+          "name" : "room",
+          "values" : {
+            "1" : "Living Room",
+            "2" : "Dining Room",
+            "3" : "Kitchen",
+            "4" : "Bedroom",
+            "5" : "Garage"
+          }
+        }
+      ]
+    }
+
+  },
+
+  "2" : {
+    "url" : "LightControl.com",
+
+    "1" : {
+      "name" : "on",
+      "params" : [
+        {
+          "name" : "intensity",
+          "values" : "int-param"
+        },
+        {
+          "name" : "room",
+          "values" : {
+            "1" : "Living Room",
+            "2" : "Dining Room",
+            "3" : "Kitchen",
+            "4" : "Bedroom",
+            "5" : "Garage"
+          }
+        }
+      ]
+    },
+
+    "2" : {
+      "name" : "off",
+      "params" : {
+        "name" : "room",
+        "values" : {
+          "1" : "Living Room",
+          "2" : "Dining Room",
+          "3" : "Kitchen",
+          "4" : "Bedroom",
+          "5" : "Garage"
+        }
+      }
+    }
+
+  }
+
+}
