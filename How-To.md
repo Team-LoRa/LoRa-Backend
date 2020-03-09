@@ -1,4 +1,4 @@
-# Using the LoRaMessenge Configuration Service 
+# Using the LoRaMessenge Configuration Service
 
 Table of contents:
 
@@ -11,19 +11,28 @@ Table of contents:
 
 # Input-Files  
 
-Input files must be in JSON format!  
+The LoRaMessenger configuration service must be given a JSON file as input. The
+format of this JSON file is described below.  
 
-Simply make the outter most keys in your JSON file the names of the apps you wish
-to use with LoRaMessenger.  
-Once you've named your Apps, their contents should be keyed as follows:  
-- url : The address you wish to access. This should correspond with the app you're using
-- api : each api should have its own key and it should have the following contents  
-    * Parameter-name : this should be paired with a list with the following constraints  
-    If the parameter accepts an arbitrary length int or double, specify which type at
-    list index 0 and the max length of the parameter in index 1.  
-    If the parameter only accepts specific values, simply place all the values in a list
+First create a dictionary where the keys are the names of the applications you
+wish to use with LoRaMessenger. These keys should point to dictionaries which
+have the following content:
+- url : The address you would like you application to send data to.
+- api : A dictionary where the keys are the names of the APIs you wish to use
+        with LoRaMessenger. These keys should point to dictionaries which have
+        the following contents:   
+    * Parameter-name : A key which points to a list in one of the two following
+                      formats:
+        * If the parameter accepts an arbitrary integer or double, specify
+          "int-param" or "double-param" at list index 0. At list index 1, specify
+          the number of bytes you would like to dedicate to storing this
+          parameter's value. Keep in mind that a single LoRaMessenger packet
+          has only 10 bytes of payload space.
+        * If the parameter has a concise list of valid inputs ( less than 256 )
+          you can place all the values you would like to be able to pass for this
+          parameter in a list.
 
-Here is an example input-json file (this can also be found in the examples folder)
+Below is an example of an input file (this can also be found in the examples folder)
 ``` JSON
 {
     "TempControl" : {
