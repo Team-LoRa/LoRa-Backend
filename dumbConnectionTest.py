@@ -9,7 +9,9 @@ HOSTNAME = 'localhost'
 BUFFER_SIZE = 1024
 
 # Create a simple list of integers to be the message
-list = [1, 1, 1, 1, 3]
+list = [1, 1, 192, 9, 33, 202, 192, 131, 18, 111]
+#list = [1, 1, 64, 73, 14, 86]
+
 # Convert it to bytes
 message = bytearray( list )
 

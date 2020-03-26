@@ -4,15 +4,16 @@ import json
 import requests
 import socket
 import ssl
+import struct
 import sys
 import threading
 
 
 
-# The number of bytes allocated to an arbitrary integer parameter
-INT_PARAM_LENGTH = 1
-# The number of bytes allocated to an arbitrary string parameter
-STR_PARAM_LENGTH = 1
+# The number of bytes allocated to an arbitrary float parameter
+FLOAT_PARAM_LENGTH = 4
+# The number of bytes allocated to an arbitrary double parameter
+DOUBLE_PARAM_LENGTH = 8
 
 
 
@@ -138,8 +139,10 @@ class message_handler_thread(threading.Thread):
                         # Retreive a sub array of the bytes dedicated to this parameter
                         integerSubArray = byteArray[ byteIndex:( byteIndex + integerLength ) ]
 
+                        print( bytes( integerSubArray ) )
+
                         # Convert the array of bytes into an integers\
-                        value = int.from_bytes( integerSubArray, byteorder='little', signed=False)
+                        value = int.from_bytes( integerSubArray, byteorder='big', signed=False)
 
                         print( value )
 
@@ -154,6 +157,57 @@ class message_handler_thread(threading.Thread):
                         print( "Byte missing for int-param" )
                         raise
 
+                elif paramValues == "float-param":
+
+                    try:
+                        # Retreive a sub array of the bytes dedicated to this parameter
+                        floatSubArray = byteArray[ byteIndex:( byteIndex + FLOAT_PARAM_LENGTH ) ]
+                        floatSubArray.reverse()
+
+                        print( bytes( floatSubArray ) )
+
+                        # Convert the array of bytes into a floating point number
+                        value = struct.unpack( 'f', bytes( floatSubArray ) )[0]
+
+                        print( value )
+
+                        decodedMessage += paramName + "=" + str( value ) + "&"
+
+                        # Iterate the byteIndex
+                        byteIndex += FLOAT_PARAM_LENGTH
+
+                    except IndexError as e :
+                        # Catch the index error
+                        print( type(e) )
+                        print( "Byte missing for float-param" )
+                        raise
+
+                elif paramValues == "double-param":
+
+                    try:
+                        # Retreive a sub array of the bytes dedicated to this parameter
+                        doubleSubArray = byteArray[ byteIndex:( byteIndex + DOUBLE_PARAM_LENGTH ) ]
+                        doubleSubArray.reverse()
+
+                        print( bytes( doubleSubArray ) )
+
+                        # Convert the array of bytes into a floating point number
+                        value = struct.unpack( 'd', bytes( doubleSubArray ) )[0]
+
+                        print( value )
+
+                        decodedMessage += paramName + "=" + str( value ) + "&"
+
+                        # Iterate the byteIndex
+                        byteIndex += DOUBLE_PARAM_LENGTH
+
+                    except IndexError as e :
+                        # Catch the index error
+                        print( type(e) )
+                        print( "Byte missing for double-param" )
+                        raise
+
+
                 elif paramValues == "char-param":
 
                     try:
@@ -164,11 +218,9 @@ class message_handler_thread(threading.Thread):
                         charSubArray = byteArray[ byteIndex:( byteIndex + charLength ) ]
 
                         # Convert the array of bytes into an integers\
-                        value = int.from_bytes( charSubArray, byteorder='little', signed=False)
+                        value = int.from_bytes( charSubArray, byteorder='big', signed=False)
 
                         value = chr( value )
-
-                        print( value )
 
                         decodedMessage += paramName + "=" + str( value ) + "&"
 
