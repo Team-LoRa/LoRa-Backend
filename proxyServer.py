@@ -114,9 +114,11 @@ class message_handler_thread(threading.Thread):
         # for the transmission from the gateway to the proxy server
 
         # Convert the string of bytes into an array of bytes
+        print(f"This is the message before becoming a list: {message}")
+
         byteArray = list( message )
 
-        print( byteArray )
+        print(f"This is the message after becoming a list: {byteArray}" )
 
         # Retrieve the app and api bytes
         appNameByte = byteArray[0]
