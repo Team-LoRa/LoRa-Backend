@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-from collections import defaultdict
 import json
 import requests
 import socket
@@ -8,7 +7,6 @@ import ssl
 import struct
 import sys
 import threading
-import time
 
 
 
@@ -17,11 +15,11 @@ FLOAT_PARAM_LENGTH = 4
 # The number of bytes allocated to an arbitrary double parameter
 DOUBLE_PARAM_LENGTH = 8
 
+received_messages = {}
 
 
 def main():
 
-    messageBuffer = defaultdict( list )
 
     # Default to port 2080
     args = 2080
@@ -60,37 +58,44 @@ def main():
             # Accept an incomming message
             connected_socket = server_socket.accept()[0]
 
-            # Recive the incomming message
-            message = receiveMessage( connected_socket )
-            print( list(message) )
+            # Save the received message as ascii
+            # .decode() uses utf-8 by default
+            message = connected_socket.recv(1024)
 
-            # Determine the message's id
-            #messageID = message[0]
-            #payloadTotal = message[1] % 16
-            #payloadNumber = int( message[1] / 16 )
-
-            # Note, this also seems to work. Not sure which is better practice/easier to grok
-            #print( "Total packets expected")
-            #print( message[1] & 0x0F )
-            #print( "This packet's number")
-            #print( int( message[1] >> 4 ) )
-
-            # Add the message to the buffer
-            #messageBuffer[messageID].append( message )
-
-            #print( messageBuffer )
-
-            # If payloadTotal messages have been received, handle them
-            #if( len( messageBuffer[messageID] ) == payloadTotal ):
-
-            # Spool off a new thread to handle the message(s)
-            #new_thread = message_handler_thread( message )
+            # Spool off a new thread to handle the message
+            new_thread = message_handler_thread( message )
 
             # Start the new thread
-            #new_thread.start()
+            new_thread.start()
 
     return 0
 
+
+def check_for_unique(message):
+    uid = message[0]
+
+    if received_messages.get(uid) == None:
+        total_messages = message[1][4:]
+        received_messages[uid] = []
+        received_messages.get(uid).append(total_messages)
+        
+    received_messages.get(uid).append(message)
+
+
+def check_all_fragments_received(message):
+    uid = message[0]
+    all_msgs = received_messages.get(uid)
+    total_messages = all_msgs[0]
+    return total_messages == (len(all_msgs) - 1)
+
+
+def get_message_number(message):
+    return message[1][0:4]
+
+
+def order_fragments(uid):
+    all_msgs = received_messages.get(uid)[1:]
+    return all_msgs.sort(key=get_message_number)
 
 
 class message_handler_thread(threading.Thread):
@@ -114,11 +119,11 @@ class message_handler_thread(threading.Thread):
         # for the transmission from the gateway to the proxy server
 
         # Convert the string of bytes into an array of bytes
-        print(f"This is the message before becoming a list: {message}")
+        print( f"This is the message before becoming a list: {message}" )
 
         byteArray = list( message )
 
-        print(f"This is the message after becoming a list: {byteArray}" )
+        print( f"This is the message after becoming a list: {byteArray}" )
 
         # Retrieve the app and api bytes
         appNameByte = byteArray[0]
@@ -233,6 +238,32 @@ class message_handler_thread(threading.Thread):
                         print( "Byte missing for double-param" )
                         raise
 
+
+                elif paramValues == "char-param":
+
+                    try:
+                        # Retreive the number of bytes dedicated to this integer
+                        charLength = int( parameter[ "length" ] )
+
+                        # Retreive a sub array of the bytes dedicated to this parameter
+                        charSubArray = byteArray[ byteIndex:( byteIndex + charLength ) ]
+
+                        # Convert the array of bytes into an integers\
+                        value = int.from_bytes( charSubArray, byteorder='big', signed=False)
+
+                        value = chr( value )
+
+                        decodedMessage += paramName + "=" + str( value ) + "&"
+
+                        # Iterate the byteIndex
+                        byteIndex += charLength
+
+                    except IndexError as e :
+                        # Catch the index error
+                        print( type(e) )
+                        print( "Byte missing for int-param" )
+                        raise
+
             # Trim trailing "&"
             decodedMessage = decodedMessage[:-1]
 
@@ -241,9 +272,9 @@ class message_handler_thread(threading.Thread):
         # Send the composed message off to its destination
         self.forwardMessage( decodedMessage )
 
-        except Exception as e:
-            print( type(e) )
-            print( "thread was unable to handle the message" )
+        # except Exception as e:
+        #     print( type(e) )
+        #     print( "thread was unable to handle the message" )
 
     def readDecodingTable(self, appByte, apiByte):
         print( "readDecodingTable ran; app: " + str(appByte) + " api: " + str(apiByte) )
@@ -320,7 +351,5 @@ def receiveAll( socket, n ):
             return None
         data.extend( packet )
     return data
-
-
 if __name__ == "__main__":
     sys.exit(main())
