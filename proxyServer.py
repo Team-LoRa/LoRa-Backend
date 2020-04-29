@@ -72,50 +72,23 @@ def main():
 
     return 0
 
-'''
-def check_for_unique(message):
-    uid = message[0]
-
-    if received_messages.get(uid) == None:
-        total_messages = message[1][4:]
-        received_messages[uid] = []
-        received_messages.get(uid).append(total_messages)
-        
-    received_messages.get(uid).append(message)
-
-
-def check_all_fragments_received(message):
-    uid = message[0]
-    all_msgs = received_messages.get(uid)
-    total_messages = all_msgs[0]
-    return total_messages == (len(all_msgs) - 1)
-
-
-def get_message_number(message):
-    return message[1][0:4]
-
-
-def order_fragments(uid):
-    all_msgs = received_messages.get(uid)[1:]
-    return all_msgs.sort(key=get_message_number)
-'''
-
 
 def count_received_fragments(message):
+    ''' Counts the number of fragments in a given message '''
     return len(message) // 12
 
 
 def check_expected_fragments(message):
+    ''' Checks the number of expected fragments based on the entry in
+    index 2. Accounts for possibility of messages coming out of order '''
     total_number_fragments = message[2]
     while total_number_fragments > 16:
         total_number_fragments -= 16
     return total_number_fragments
 
-'''
-class MissingFragments(Exception):
-    print("Not all fragments were received")
-'''
+
 def get_app_and_api(message):
+    ''' Get's the app and api nibbles from a cleaned messaged '''
     base = 2**4
     byte = message[0]
     app = byte // base
@@ -124,6 +97,8 @@ def get_app_and_api(message):
 
 
 def strip_metadata(message):
+    ''' Removes metadata from a message.
+    Metadata is the UID, Message number, and number of expected messages '''
     total_number_fragments = check_expected_fragments(message)
     if count_received_fragments(message) != total_number_fragments:
         raise Exception 
@@ -136,6 +111,8 @@ def strip_metadata(message):
 
 
 def rebuild_message(message):
+    ''' Helper function for strip_metadata.
+    Combines all lists created by strip_metadata back into a single list '''
     rebuilt_message = []
     for lists in message:
         for items in lists:
@@ -167,10 +144,10 @@ class message_handler_thread(threading.Thread):
         byteArray = list( message )
 
         # Strip metadata from byte array
-        clean_message = strip_metadata(byteArray)
+        byteArray = strip_metadata(byteArray)
 
         # Retrieve the app and api bytes
-        ( appNameByte, apiNameByte ) =  get_app_and_api(clean_message)
+        ( appNameByte, apiNameByte ) =  get_app_and_api(byteArray)
          
 
         # Read the appropriate encoding table based upon the app/api combo
@@ -183,9 +160,9 @@ class message_handler_thread(threading.Thread):
 
             decodedMessage += "?"
 
-            # Initialize the byte index at 2 since we already read the first two
+            # Initialize the byte index at 1 since we already read the first index 
             # bytes
-            byteIndex = 2
+            byteIndex = 1
 
             # Parse the remaining bytes as the parameters in order
             for parameter in self.paramsTable:
