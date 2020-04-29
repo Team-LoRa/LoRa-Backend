@@ -60,7 +60,9 @@ def main():
 
             # Save the received message as ascii
             # .decode() uses utf-8 by default
-            message = connected_socket.recv(1024)
+            #message = connected_socket.recv(1024)
+            message = receiveMessage( connected_socket )
+            print(f"This is the message built in the loop: {message}")
 
             # Spool off a new thread to handle the message
             new_thread = message_handler_thread( message )
@@ -70,7 +72,7 @@ def main():
 
     return 0
 
-
+'''
 def check_for_unique(message):
     uid = message[0]
 
@@ -96,6 +98,49 @@ def get_message_number(message):
 def order_fragments(uid):
     all_msgs = received_messages.get(uid)[1:]
     return all_msgs.sort(key=get_message_number)
+'''
+
+
+def count_received_fragments(message):
+    return len(message) // 12
+
+
+def check_expected_fragments(message):
+    total_number_fragments = message[2]
+    while total_number_fragments > 16:
+        total_number_fragments -= 16
+    return total_number_fragments
+
+'''
+class MissingFragments(Exception):
+    print("Not all fragments were received")
+'''
+def get_app_and_api(message):
+    base = 2**4
+    byte = message[0]
+    app = byte // base
+    api = byte - (app * base)
+    return (app, api)
+
+
+def strip_metadata(message):
+    total_number_fragments = check_expected_fragments(message)
+    if count_received_fragments(message) != total_number_fragments:
+        raise Exception 
+    ret_list = []
+    working_list = message
+    for fragments in range(total_number_fragments):
+        ret_list.append(working_list[3:13])
+        working_list = working_list[13:]
+    return rebuild_message(ret_list)
+
+
+def rebuild_message(message):
+    rebuilt_message = []
+    for lists in message:
+        for items in lists:
+            rebuilt_message.append(items)
+    return rebuilt_message
 
 
 class message_handler_thread(threading.Thread):
@@ -119,15 +164,14 @@ class message_handler_thread(threading.Thread):
         # for the transmission from the gateway to the proxy server
 
         # Convert the string of bytes into an array of bytes
-        print( f"This is the message before becoming a list: {message}" )
-
         byteArray = list( message )
 
-        print( f"This is the message after becoming a list: {byteArray}" )
+        # Strip metadata from byte array
+        clean_message = strip_metadata(byteArray)
 
         # Retrieve the app and api bytes
-        appNameByte = byteArray[0]
-        apiNameByte = byteArray[1]
+        ( appNameByte, apiNameByte ) =  get_app_and_api(clean_message)
+         
 
         # Read the appropriate encoding table based upon the app/api combo
         self.readDecodingTable(appNameByte, apiNameByte)
