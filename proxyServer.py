@@ -15,9 +15,12 @@ FLOAT_PARAM_LENGTH = 4
 # The number of bytes allocated to an arbitrary double parameter
 DOUBLE_PARAM_LENGTH = 8
 
+received_messages = {}
 
 
 def main():
+
+
     # Default to port 2080
     args = 2080
 
@@ -57,7 +60,9 @@ def main():
 
             # Save the received message as ascii
             # .decode() uses utf-8 by default
-            message = connected_socket.recv(1024)
+            #message = connected_socket.recv(1024)
+            message = receiveMessage( connected_socket )
+            print(f"This is the message built in the loop: {message}")
 
             # Spool off a new thread to handle the message
             new_thread = message_handler_thread( message )
@@ -67,6 +72,52 @@ def main():
 
     return 0
 
+
+def count_received_fragments(message):
+    ''' Counts the number of fragments in a given message '''
+    return len(message) // 12
+
+
+def check_expected_fragments(message):
+    ''' Checks the number of expected fragments based on the entry in
+    index 2. Accounts for possibility of messages coming out of order '''
+    total_number_fragments = message[2]
+    while total_number_fragments > 16:
+        total_number_fragments -= 16
+    return total_number_fragments
+
+
+def get_app_and_api(message):
+    ''' Get's the app and api nibbles from a cleaned messaged '''
+    base = 2**4
+    byte = message[0]
+    app = byte // base
+    api = byte - (app * base)
+    return (app, api)
+
+
+def strip_metadata(message):
+    ''' Removes metadata from a message.
+    Metadata is the UID, Message number, and number of expected messages '''
+    total_number_fragments = check_expected_fragments(message)
+    if count_received_fragments(message) != total_number_fragments:
+        raise Exception 
+    ret_list = []
+    working_list = message
+    for fragments in range(total_number_fragments):
+        ret_list.append(working_list[3:13])
+        working_list = working_list[13:]
+    return rebuild_message(ret_list)
+
+
+def rebuild_message(message):
+    ''' Helper function for strip_metadata.
+    Combines all lists created by strip_metadata back into a single list '''
+    rebuilt_message = []
+    for lists in message:
+        for items in lists:
+            rebuilt_message.append(items)
+    return rebuilt_message
 
 
 class message_handler_thread(threading.Thread):
@@ -92,11 +143,12 @@ class message_handler_thread(threading.Thread):
         # Convert the string of bytes into an array of bytes
         byteArray = list( message )
 
-        print( byteArray )
+        # Strip metadata from byte array
+        byteArray = strip_metadata(byteArray)
 
         # Retrieve the app and api bytes
-        appNameByte = byteArray[0]
-        apiNameByte = byteArray[1]
+        ( appNameByte, apiNameByte ) =  get_app_and_api(byteArray)
+         
 
         # Read the appropriate encoding table based upon the app/api combo
         self.readDecodingTable(appNameByte, apiNameByte)
@@ -108,9 +160,9 @@ class message_handler_thread(threading.Thread):
 
             decodedMessage += "?"
 
-            # Initialize the byte index at 2 since we already read the first two
+            # Initialize the byte index at 1 since we already read the first index 
             # bytes
-            byteIndex = 2
+            byteIndex = 1
 
             # Parse the remaining bytes as the parameters in order
             for parameter in self.paramsTable:
@@ -303,5 +355,22 @@ class message_handler_thread(threading.Thread):
 
 
 
+def receiveMessage( socket ):
+    rawMessageLength = receiveAll( socket, 4 )
+
+    if not rawMessageLength:
+        return None
+    messageLength = struct.unpack('>I', rawMessageLength)[0]
+
+    return receiveAll( socket, messageLength )
+
+def receiveAll( socket, n ):
+    data = bytearray()
+    while len(data) < n:
+        packet = socket.recv( n - len(data) )
+        if not packet:
+            return None
+        data.extend( packet )
+    return data
 if __name__ == "__main__":
     sys.exit(main())

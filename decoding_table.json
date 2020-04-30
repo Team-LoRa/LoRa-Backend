@@ -1,87 +1,42 @@
 {
 
   "1" : {
-    "url" : "TempControl.com",
+    "url" : "OpenCellID.com",
 
     "1" : {
-      "name" : "tempUp",
+      "name" : "measure/add",
       "params" : [
         {
-          "name" : "increaseAmount",
-          "values" : "char-param",
-          "length" : "2"
+          "name" : "lat",
+          "values" : "double-param",
+          "length" : "8"
         },
         {
-          "name" : "room",
-          "values" : {
-            "1" : "Living Room",
-            "2" : "Dining Room",
-            "3" : "Kitchen",
-            "4" : "Bedroom",
-            "5" : "Garage"
-          }
-        }
-      ]
-    },
-
-    "2" : {
-      "name" : "tempDown",
-      "params" : [
+          "name" : "lon",
+          "values" : "double-param",
+          "length" : "8"
+        },
         {
-          "name" : "increaseAmount",
+          "name" : "mcc",
+          "values" : "int-param",
+          "length" : "1"
+        },
+        {
+          "name" : "mnc",
           "values" : "int-param",
           "length" : "2"
         },
         {
-          "name" : "room",
-          "values" : {
-            "1" : "Living Room",
-            "2" : "Dining Room",
-            "3" : "Kitchen",
-            "4" : "Bedroom",
-            "5" : "Garage"
-          }
-        }
-      ]
-    }
-
-  },
-
-  "2" : {
-    "url" : "LightControl.com",
-
-    "1" : {
-      "name" : "on",
-      "params" : [
-        {
-          "name" : "intensity",
-          "values" : "int-param"
+          "name" : "lac",
+          "values" : "int-param",
+          "length" : "3"
         },
         {
-          "name" : "room",
-          "values" : {
-            "1" : "Living Room",
-            "2" : "Dining Room",
-            "3" : "Kitchen",
-            "4" : "Bedroom",
-            "5" : "Garage"
-          }
+          "name" : "cellid",
+          "values" : "int-param",
+          "length" : "4"
         }
       ]
-    },
-
-    "2" : {
-      "name" : "off",
-      "params" : {
-        "name" : "room",
-        "values" : {
-          "1" : "Living Room",
-          "2" : "Dining Room",
-          "3" : "Kitchen",
-          "4" : "Bedroom",
-          "5" : "Garage"
-        }
-      }
     }
 
   }
