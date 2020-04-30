@@ -1,0 +1,16 @@
+[
+    {
+      "encoding" : "encoding_table.json",
+      "decoding" : "decoding_table.json",
+      "app" : "OpenCellID",
+      "api" : "measure/add",
+      "params" : [ 12.314, 13.564, 46, 2367, 85476, 1348493027 ]
+    },
+    {
+      "encoding" : "encoding_table.json",
+      "decoding" : "decoding_table.json",
+      "app" : "OpenCellID",
+      "api" : "measure/add",
+      "params" : [ 12.314, 13.564, 46, 2367, 85476 ]
+    }
+]
