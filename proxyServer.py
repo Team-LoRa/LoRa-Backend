@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
-import requests
 import socket
-import ssl
 import struct
 import sys
 import threading
@@ -18,6 +16,8 @@ DOUBLE_PARAM_LENGTH = 8
 
 
 def main():
+    ''' Main function responsible for running the basic server loop. '''
+
     # Default to port 2080
     args = 2080
 
@@ -57,7 +57,6 @@ def main():
 
             # Save the received message as ascii
             # .decode() uses utf-8 by default
-            #message = connected_socket.recv(1024)
             message = receive_message( connected_socket )
             print(f"This is the message built in the loop: {list( message )}")
 
@@ -72,6 +71,8 @@ def main():
 
 
 class message_handler_thread(threading.Thread):
+    ''' Thread class responsible for handling a single message. '''
+
     def __init__(self, message):
         threading.Thread.__init__(self)
         self.message = message
@@ -82,17 +83,15 @@ class message_handler_thread(threading.Thread):
 
     def run(self):
         print( "Starting thread " + str(threading.get_ident()) )
-        self.handleMessage( self.message )
+        self.handle_message( self.message )
         print( "Exiting thead " + str(threading.get_ident()) )
 
 
-    def handleMessage(self, message):
+    def handle_message(self, message):
+        ''' Decodes the given message based on the information found in
+            decoding_table.json, then forwards the message to its intended
+            destination. '''
         print( "handle message began" )
-
-        #try:
-        # TODO: Handle any kind of header metadata that gets added to the bytes
-        # for the transmission from the gateway to the proxy server
-
         # Convert the string of bytes into an array of bytes
         byte_array = list( message )
 
@@ -212,46 +211,18 @@ class message_handler_thread(threading.Thread):
                         print( "Byte missing for double-param" )
                         raise
 
-
-                elif param_values == "char-param":
-
-                    try:
-                        # Retreive the number of bytes dedicated to this integer
-                        charLength = int( parameter[ "length" ] )
-
-                        # Retreive a sub array of the bytes dedicated to this parameter
-                        charSubArray = byte_array[ byte_index:( byte_index + charLength ) ]
-
-                        # Convert the array of bytes into an integers\
-                        value = int.from_bytes( charSubArray, byteorder='big', signed=False)
-
-                        value = chr( value )
-
-                        decoded_message += param_name + "=" + str( value ) + "&"
-
-                        # Iterate the byte_index
-                        byte_index += charLength
-
-                    except IndexError as e :
-                        # Catch the index error
-                        print( type(e) )
-                        print( "Byte missing for int-param" )
-                        raise
-
             # Trim trailing "&"
             decoded_message = decoded_message[:-1]
-
-        # TODO: Handle remaining bytes in some way, potentially a checksum?
 
         # Send the composed message off to its destination
         self.forward_message( decoded_message )
 
-        # except Exception as e:
-        #     print( type(e) )
-        #     print( "thread was unable to handle the message" )
-
 
     def read_decoding_table(self, appByte, apiByte):
+        ''' Reads the file decoding_table.json and parses it to determine the
+            name of the app that sent the message, the name of the api the
+            message is using, and a list of parameters to expect with the
+            message. '''
         print( "read_decoding_table ran; app: " + str(appByte) + " api: " + str(apiByte) )
 
         try:
@@ -303,16 +274,17 @@ class message_handler_thread(threading.Thread):
 
 
     def forward_message(self, message):
+        ''' Stub function that forwards the decoded message to its destination
+            based on the URL and api name found in the decoding table. Currently,
+            just prints out the resulting URL. '''
         print( "forward_message ran" )
         print( message )
-
-        # Potentially use request to send the message off with its data?
-
-
 
 
 
 def receive_message( socket ):
+    ''' Receives a message from the LoRaMessenger library through the given socket.
+        Reads the 4 byte header of the message to know how many bytes to expect. '''
     raw_message_length = receive_all( socket, 4 )
 
     if not raw_message_length:
@@ -323,6 +295,7 @@ def receive_message( socket ):
 
 
 def receive_all( socket, n ):
+    ''' Waits to receive all n bytes from the given sockets '''
     data = bytearray()
     while len(data) < n:
         packet = socket.recv( n - len(data) )
