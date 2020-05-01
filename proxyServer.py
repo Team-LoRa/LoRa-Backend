@@ -100,7 +100,8 @@ class message_handler_thread(threading.Thread):
         ( app_name_byte, api_name_byte ) =  get_app_and_api( byte_array )
 
         # Read the appropriate encoding table based upon the app/api combo
-        ( app_name, api_name, params_table ) = read_decoding_table( app_name_byte, api_name_byte )
+        # Default to reading from "decoding_table.json"
+        ( app_name, api_name, params_table ) = read_decoding_table( "decoding_table.json", app_name_byte, api_name_byte )
 
         # Decode the message
         decoded_message = decode_message( app_name, api_name, params_table, byte_array )
@@ -109,7 +110,7 @@ class message_handler_thread(threading.Thread):
         forward_message( decoded_message )
 
 
-def read_decoding_table( app_byte, api_byte ):
+def read_decoding_table( filename, app_byte, api_byte ):
     ''' Reads the file decoding_table.json and parses it to determine the
         name of the app that sent the message, the name of the api the
         message is using, and a list of parameters to expect with the
@@ -118,7 +119,7 @@ def read_decoding_table( app_byte, api_byte ):
 
     try:
         # Open the encoding table file and convert it into a dictionary
-        file = open("decoding_table.json", 'r')
+        file = open( filename, 'r')
         decoding_table = json.load(file)
 
     except FileNotFoundError as e:
