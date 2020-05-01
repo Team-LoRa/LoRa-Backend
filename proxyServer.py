@@ -76,9 +76,6 @@ class message_handler_thread(threading.Thread):
     def __init__(self, message):
         threading.Thread.__init__(self)
         self.message = message
-        self.app_name = None
-        self.api_name = None
-        self.params_table = None
 
 
     def run(self):
@@ -87,7 +84,7 @@ class message_handler_thread(threading.Thread):
         print( "Exiting thead " + str(threading.get_ident()) )
 
 
-    def handle_message(self, message):
+    def handle_message( self, message ):
         ''' Decodes the given message based on the information found in
             decoding_table.json, then forwards the message to its intended
             destination. '''
@@ -97,188 +94,193 @@ class message_handler_thread(threading.Thread):
 
         # Strip metadata from byte array
         byte_array = strip_metadata(byte_array)
+        print( byte_array )
 
         # Retrieve the app and api bytes
-        ( app_name_byte, api_name_byte ) =  get_app_and_api(byte_array)
-
+        ( app_name_byte, api_name_byte ) =  get_app_and_api( byte_array )
 
         # Read the appropriate encoding table based upon the app/api combo
-        self.read_decoding_table(app_name_byte, api_name_byte)
+        ( app_name, api_name, params_table ) = read_decoding_table( app_name_byte, api_name_byte )
 
-        decoded_message = self.app_name + "/" + self.api_name
+        # Decode the message
+        decoded_message = decode_message( app_name, api_name, params_table, byte_array )
 
-        # Check if the api has params
-        if self.params_table:
+        # Send the composed message off to its destination
+        forward_message( decoded_message )
 
-            decoded_message += "?"
 
-            # Initialize the byte index at 1 since we already read the first index
-            # bytes
-            byte_index = 1
+def read_decoding_table( app_byte, api_byte ):
+    ''' Reads the file decoding_table.json and parses it to determine the
+        name of the app that sent the message, the name of the api the
+        message is using, and a list of parameters to expect with the
+        message. '''
+    print( "read_decoding_table ran; app: " + str(app_byte) + " api: " + str(api_byte) )
 
-            # Parse the remaining bytes as the parameters in order
-            for parameter in self.params_table:
+    try:
+        # Open the encoding table file and convert it into a dictionary
+        file = open("decoding_table.json", 'r')
+        decoding_table = json.load(file)
 
-                # Read the name and values of the param
-                param_name = parameter[ "name" ]
-                param_values = parameter[ "values" ]
+    except FileNotFoundError as e:
+        # Catch file not found exception,
+        print( type(e) )
+        print( "No encoding table found" )
+        raise
 
-                # Determine behavior based on the type of parameter
-                if type(param_values) is dict:
+    try:
+        # Attempt to read the application name
+        app_table = decoding_table[ str(app_byte) ]
 
-                    # Decode the parameter using its values hash
-                    value = param_values[ str( byte_array[ byte_index ] ) ]
+    except KeyError as e:
+        # Catch key error
+        print( type(e) )
+        print( "App byte not found in decoding table" )
+        raise
+
+    try:
+        # Attempt to read the api name
+        api_table = app_table[ str(api_byte) ]
+
+    except KeyError as e :
+        # Catch key error
+        print( type(e) )
+        print( "API byte not found in decoding table" )
+        raise
+
+    try:
+        # Return the application's url, the api name, and the api's parameters
+        return( app_table[ "url" ], api_table[ "name" ], api_table[ "params" ] )
+
+    except KeyError as e :
+        # Catch key error
+        print( type(e) )
+        print( "Decoding table missing information" )
+        raise
+
+
+def decode_message( app_name, api_name, params_table, byte_array ):
+    decoded_message = app_name + "/" + api_name
+
+    # Check if the api has params
+    if params_table:
+
+        decoded_message += "?"
+
+        # Initialize the byte index at 1 since we already read the first index
+        # bytes
+        byte_index = 1
+
+        # Parse the remaining bytes as the parameters in order
+        for parameter in params_table:
+
+            # Read the name and values of the param
+            param_name = parameter[ "name" ]
+            param_values = parameter[ "values" ]
+
+            # Determine behavior based on the type of parameter
+            if type(param_values) is dict:
+
+                # Decode the parameter using its values hash
+                value = param_values[ str( byte_array[ byte_index ] ) ]
+
+                decoded_message += param_name + "=" + str( value ) + "&"
+
+                # Iterate the byte_index
+                byte_index += 1
+
+            elif param_values == "int-param":
+                print( "Decoding int value" )
+
+                try:
+                    # Retreive the number of bytes dedicated to this integer
+                    integer_length = int( parameter[ "length" ] )
+                    print( integer_length )
+
+                    # Retreive a sub array of the bytes dedicated to this parameter
+                    integer_sub_array = byte_array[ byte_index:( byte_index + integer_length ) ]
+
+                    print( integer_sub_array )
+
+                    # Convert the array of bytes into an integers\
+                    value = int.from_bytes( integer_sub_array, byteorder='big', signed=False)
+
+                    print( value )
 
                     decoded_message += param_name + "=" + str( value ) + "&"
 
                     # Iterate the byte_index
-                    byte_index += 1
+                    byte_index += integer_length
 
-                elif param_values == "int-param":
+                except IndexError as e :
+                    # Catch the index error
+                    print( type(e) )
+                    print( "Byte missing for int-param" )
+                    raise
 
-                    try:
-                        # Retreive the number of bytes dedicated to this integer
-                        integer_length = int( parameter[ "length" ] )
+            elif param_values == "float-param":
+                print( "Decoding float value" )
 
-                        # Retreive a sub array of the bytes dedicated to this parameter
-                        integer_sub_array = byte_array[ byte_index:( byte_index + integer_length ) ]
+                try:
+                    # Retreive a sub array of the bytes dedicated to this parameter
+                    float_sub_array = byte_array[ byte_index:( byte_index + FLOAT_PARAM_LENGTH ) ]
+                    float_sub_array.reverse()
 
-                        print( bytes( integer_sub_array ) )
+                    print( float_sub_array )
 
-                        # Convert the array of bytes into an integers\
-                        value = int.from_bytes( integer_sub_array, byteorder='big', signed=False)
+                    # Convert the array of bytes into a floating point number
+                    value = struct.unpack( 'f', bytes( float_sub_array ) )[0]
 
-                        print( value )
+                    print( value )
 
-                        decoded_message += param_name + "=" + str( value ) + "&"
+                    decoded_message += param_name + "=" + str( value ) + "&"
 
-                        # Iterate the byte_index
-                        byte_index += integer_length
+                    # Iterate the byte_index
+                    byte_index += FLOAT_PARAM_LENGTH
 
-                    except IndexError as e :
-                        # Catch the index error
-                        print( type(e) )
-                        print( "Byte missing for int-param" )
-                        raise
+                except IndexError as e :
+                    # Catch the index error
+                    print( type(e) )
+                    print( "Byte missing for float-param" )
+                    raise
 
-                elif param_values == "float-param":
+            elif param_values == "double-param":
+                print( "Decoding double value" )
 
-                    try:
-                        # Retreive a sub array of the bytes dedicated to this parameter
-                        float_sub_array = byte_array[ byte_index:( byte_index + FLOAT_PARAM_LENGTH ) ]
-                        float_sub_array.reverse()
+                try:
+                    # Retreive a sub array of the bytes dedicated to this parameter
+                    double_sub_array = byte_array[ byte_index:( byte_index + DOUBLE_PARAM_LENGTH ) ]
+                    double_sub_array.reverse()
 
-                        print( bytes( float_sub_array ) )
+                    print( double_sub_array )
 
-                        # Convert the array of bytes into a floating point number
-                        value = struct.unpack( 'f', bytes( float_sub_array ) )[0]
+                    # Convert the array of bytes into a floating point number
+                    value = struct.unpack( 'd', bytes( double_sub_array ) )[0]
 
-                        print( value )
+                    print( value )
 
-                        decoded_message += param_name + "=" + str( value ) + "&"
+                    decoded_message += param_name + "=" + str( value ) + "&"
 
-                        # Iterate the byte_index
-                        byte_index += FLOAT_PARAM_LENGTH
+                    # Iterate the byte_index
+                    byte_index += DOUBLE_PARAM_LENGTH
 
-                    except IndexError as e :
-                        # Catch the index error
-                        print( type(e) )
-                        print( "Byte missing for float-param" )
-                        raise
+                except IndexError as e :
+                    # Catch the index error
+                    print( type(e) )
+                    print( "Byte missing for double-param" )
+                    raise
 
-                elif param_values == "double-param":
+        # Trim trailing "&"
+        decoded_message = decoded_message[:-1]
 
-                    try:
-                        # Retreive a sub array of the bytes dedicated to this parameter
-                        double_sub_array = byte_array[ byte_index:( byte_index + DOUBLE_PARAM_LENGTH ) ]
-                        double_sub_array.reverse()
-
-                        print( bytes( double_sub_array ) )
-
-                        # Convert the array of bytes into a floating point number
-                        value = struct.unpack( 'd', bytes( double_sub_array ) )[0]
-
-                        print( value )
-
-                        decoded_message += param_name + "=" + str( value ) + "&"
-
-                        # Iterate the byte_index
-                        byte_index += DOUBLE_PARAM_LENGTH
-
-                    except IndexError as e :
-                        # Catch the index error
-                        print( type(e) )
-                        print( "Byte missing for double-param" )
-                        raise
-
-            # Trim trailing "&"
-            decoded_message = decoded_message[:-1]
-
-        # Send the composed message off to its destination
-        self.forward_message( decoded_message )
+        return decoded_message
 
 
-    def read_decoding_table(self, appByte, apiByte):
-        ''' Reads the file decoding_table.json and parses it to determine the
-            name of the app that sent the message, the name of the api the
-            message is using, and a list of parameters to expect with the
-            message. '''
-        print( "read_decoding_table ran; app: " + str(appByte) + " api: " + str(apiByte) )
-
-        try:
-            # Open the encoding table file and convert it into a dictionary
-            file = open("decoding_table.json", 'r')
-            decoding_table = json.load(file)
-
-        except FileNotFoundError as e:
-            # Catch file not found exception,
-            print( type(e) )
-            print( "No encoding table found" )
-            raise
-
-        try:
-            # Attempt to read the application name
-            app_table = decoding_table[ str(appByte) ]
-
-        except KeyError as e:
-            # Catch key error
-            print( type(e) )
-            print( "App byte not found in decoding table" )
-            raise
-
-        try:
-            # Attempt to read the api name
-            api_table = app_table[ str(apiByte) ]
-
-        except KeyError as e :
-            # Catch key error
-            print( type(e) )
-            print( "API byte not found in decoding table" )
-            raise
-
-        try:
-            # Save the application's url
-            self.app_name = app_table[ "url" ]
-
-            # Save the api name
-            self.api_name = api_table[ "name" ]
-
-            # Save the api's parameters
-            self.params_table = api_table[ "params" ]
-
-        except KeyError as e :
-            # Catch key error
-            print( type(e) )
-            print( "Decoding table missing information" )
-            raise
-
-
-    def forward_message(self, message):
-        ''' Stub function that forwards the decoded message to its destination
-            based on the URL and api name found in the decoding table. Currently,
-            just prints out the resulting URL. '''
-        print( "forward_message ran" )
-        print( message )
+def forward_message( message ):
+    ''' Stub function that forwards the decoded message to its destination
+        based on the URL and api name found in the decoding table. Currently,
+        just prints out the resulting URL. '''
+    print( "forward_message ran" )
+    print( message )
 
 
 
@@ -332,8 +334,6 @@ def strip_metadata(message):
     ''' Removes metadata from a message.
     Metadata is the UID, Message number, and number of expected messages '''
     total_number_fragments = check_expected_fragments(message)
-    print( total_number_fragments )
-    print( count_received_fragments(message) )
     if count_received_fragments(message) != total_number_fragments:
         raise Exception
     ret_list = []
